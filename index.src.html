@@ -3175,7 +3175,8 @@ function rpStart(d){
       }
     }
   }
-  /* condução: sem pressão de um adversário perto, o jogador demora-se 1-2s na bola antes de a passar.
+  /* condução: sem pressão de um adversário perto, o jogador DRIBLA para a frente com a bola durante 1-2s
+     antes de a passar (não fica parado) — avanço predominante, com deriva lateral natural.
      Só para quem já está numa posição relevante para o jogo (meio-campo em diante) — a construção
      profunda (GR/central) mantém-se rápida, para não prender toda a equipa lá atrás por segundos. */
   {
@@ -3190,10 +3191,12 @@ function rpStart(d){
         const nearestDef=(d.D&&d.D.length)?Math.min.apply(null,d.D.map(o=>Math.hypot(o.x-cur.x,o.y-cur.y))):9;
         const pressed=nearestDef<0.13;
         if(!deepBuildup&&!pressed&&Math.random()<0.85){
-          const ang=Math.random()*Math.PI*2,rad=0.015+Math.random()*0.018;
+          /* avança predominantemente para a baliza (y decresce), com deriva lateral moderada */
+          const fwd=0.07+Math.random()*0.08;      /* terreno ganho a driblar */
+          const lat=(Math.random()*2-1)*0.05;      /* deriva lateral (corte/arranque) */
           withCarries.push({
-            x:Math.max(0.04,Math.min(0.96,cur.x+Math.cos(ang)*rad)),
-            y:Math.max(0.05,Math.min(0.95,cur.y+Math.sin(ang)*rad)),
+            x:Math.max(0.06,Math.min(0.94,cur.x+lat)),
+            y:Math.max(0.07,Math.min(0.95,cur.y-fwd)),
             id:cur.id,n:cur.n
           });
         }
