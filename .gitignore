@@ -3,3 +3,7 @@ package.json
 package-lock.json
 replay.js
 *.png
+!icon-192.png
+!icon-512.png
+!apple-touch-icon.png
+!logo-96.png

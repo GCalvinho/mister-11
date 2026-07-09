@@ -3,16 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Míster PT — Football Manager Lite</title>
+<title>Mister 11 — Football Manager</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Míster PT">
+<meta name="apple-mobile-web-app-title" content="Mister 11">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <meta name="theme-color" content="#0B231A">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%230B231A'/%3E%3Ccircle cx='90' cy='90' r='52' fill='none' stroke='%23FFB81C' stroke-width='8'/%3E%3Cpath d='M90 38 L90 142 M38 90 L142 90' stroke='%231E4533' stroke-width='6'/%3E%3Ccircle cx='90' cy='90' r='14' fill='%23FFB81C'/%3E%3C/svg%3E">
 <script>
 // Manifest inline (data URI) para instalação como PWA
-const manifest={name:"Míster PT",short_name:"MísterPT",display:"fullscreen",orientation:"portrait",background_color:"#0B231A",theme_color:"#0B231A",start_url:".",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230B231A'/%3E%3Ccircle cx='256' cy='256' r='150' fill='none' stroke='%23FFB81C' stroke-width='22'/%3E%3Ccircle cx='256' cy='256' r='40' fill='%23FFB81C'/%3E%3C/svg%3E",sizes:"512x512",type:"image/svg+xml",purpose:"any"}]};
+const manifest={name:"Mister 11",short_name:"Mister 11",display:"fullscreen",orientation:"portrait",background_color:"#0B231A",theme_color:"#0B231A",start_url:".",icons:[{src:"icon-192.png",sizes:"192x192",type:"image/png",purpose:"any"},{src:"icon-512.png",sizes:"512x512",type:"image/png",purpose:"any"}]};
 const mb=new Blob([JSON.stringify(manifest)],{type:'application/json'});
 const ml=document.createElement('link');ml.rel='manifest';ml.href=URL.createObjectURL(mb);document.head.appendChild(ml);
 </script>
@@ -267,8 +269,8 @@ table.tbl .tn{max-width:140px}
 <div class="screen on" id="scr-home">
   <div class="content nonav">
     <div class="hero">
-      <div class="logo"><svg width="52" height="52" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#FFB81C" stroke-width="6"/><circle cx="50" cy="50" r="10" fill="#FFB81C"/><path d="M50 14 v72 M14 50 h72" stroke="#235038" stroke-width="4"/></svg></div>
-      <h1>Míster <span>PT</span></h1>
+      <div class="logo"><img src="logo-96.png" width="64" height="64" alt="Mister 11" style="border-radius:14px;display:block"></div>
+      <h1>Mister <span>11</span></h1>
       <p>Football Manager Lite · Liga Portugal &amp; Liga Portugal 2</p>
     </div>
     <div class="card"><h3>As tuas carreiras</h3><div id="save-list"></div>
@@ -923,8 +925,20 @@ function pickGo(n){
   if(n===2){renderLeagueTabs();renderPick(pickDiv||1);}
 }
 $("btn-new-career").onclick=()=>{pickGo(1);show("scr-pick");setTimeout(()=>$("mgr-name").focus(),150)};
-$("btn-step2").onclick=()=>pickGo(2);
-$("mgr-name").addEventListener("keydown",e=>{if(e.key==="Enter")pickGo(2)});
+function reqMgrName(){
+  const v=($("mgr-name").value||"").trim();
+  if(!v){
+    toast("Escreve o teu nome para continuares");
+    $("mgr-name").style.borderColor="var(--red)";
+    $("mgr-name").focus();
+    setTimeout(()=>{$("mgr-name").style.borderColor=""},1400);
+    return false;
+  }
+  return true;
+}
+$("btn-step2").onclick=()=>{if(reqMgrName())pickGo(2)};
+$("mgr-name").addEventListener("keydown",e=>{if(e.key==="Enter"&&reqMgrName())pickGo(2)});
+$("mgr-name").addEventListener("input",()=>{if($("mgr-name").value.trim())$("mgr-name").style.borderColor=""});
 $("pick-back").onclick=()=>{if(pickStep===2)pickGo(1);else show("scr-home")};
 
 /* ---- Escolha de clube ---- */
@@ -957,7 +971,8 @@ function renderPick(d){
     <div class="club-card" onclick="startCareer(${t.i})">${crest(t)}<b>${t.n}</b><div class="sub">${t.b?"Equipa B":fmtM(t.bud*1e6)}</div></div>`).join("");
 }
 function startCareer(ti){
-  const mgr=($("mgr-name").value||"Míster").trim();
+  const mgr=($("mgr-name").value||"").trim();
+  if(!mgr){pickGo(1);reqMgrName();return;} /* nunca cria carreira sem nome do treinador */
   const slots=saveIndex().map(s=>s.slot);let slot=1;while(slots.includes(slot))slot++;
   const teams=buildSquads().map(t=>({i:t.i,n:t.n,s:t.s,c:t.c,st:t.st,div:t.d,b:t.b||0,base:t.base,budget:Math.round((t.bud||0)*1e6),players:t.players,stadium:t.stadium,academy:t.academy}));
   G={v:1,slot,mgr,my:ti,season:2025,teams,inbox:[],offersIn:[],windowOpen:true,tactic:null,matchesPlayed:0,history:[],rep:30,records:{streak:0,bestStreak:0},revenue:{season:{tickets:0,ads:0,total:0},lastAdMonth:-1}};
@@ -1008,7 +1023,7 @@ $("btn-menu").onclick=()=>{
    <button class="btn ghost" onclick="closeSheet();showInbox()">📥 Caixa de entrada ${G.inbox.some(m=>m.unread)?"•":""}</button>
    <button class="btn ghost" onclick="saveGame();toast('Carreira gravada');closeSheet()">💾 Gravar carreira</button>
    <button class="btn ghost" onclick="saveGame();closeSheet();show('scr-home');renderHome()">🚪 Gravar e sair</button>
-   <p class="sub" style="text-align:center;margin-top:12px;opacity:.6">Míster PT · build ${APP_BUILD}</p>`);
+   <p class="sub" style="text-align:center;margin-top:12px;opacity:.6">Mister 11 · build ${APP_BUILD}</p>`);
 };
 function showInbox(){
   G.inbox.forEach(m=>m.unread=0);refreshHeader();
@@ -3160,12 +3175,38 @@ function rpStart(d){
       }
     }
   }
+  /* condução: sem pressão de um adversário perto, o jogador demora-se 1-2s na bola antes de a passar.
+     Só para quem já está numa posição relevante para o jogo (meio-campo em diante) — a construção
+     profunda (GR/central) mantém-se rápida, para não prender toda a equipa lá atrás por segundos. */
+  {
+    const roleOf={};for(const o of(d.A||[]))roleOf[o.id]=o.role;
+    const withCarries=[];
+    for(let i=0;i<legs.length;i++){
+      const cur=legs[i];
+      withCarries.push(cur);
+      if(i<legs.length-1&&legs[i+1].id!==cur.id){
+        const rl=roleOf[cur.id];
+        const deepBuildup=rl==="GR"||rl==="CEN";
+        const nearestDef=(d.D&&d.D.length)?Math.min.apply(null,d.D.map(o=>Math.hypot(o.x-cur.x,o.y-cur.y))):9;
+        const pressed=nearestDef<0.13;
+        if(!deepBuildup&&!pressed&&Math.random()<0.85){
+          const ang=Math.random()*Math.PI*2,rad=0.015+Math.random()*0.018;
+          withCarries.push({
+            x:Math.max(0.04,Math.min(0.96,cur.x+Math.cos(ang)*rad)),
+            y:Math.max(0.05,Math.min(0.95,cur.y+Math.sin(ang)*rad)),
+            id:cur.id,n:cur.n
+          });
+        }
+      }
+    }
+    legs=withCarries;
+  }
   RP.segs=[];let t=520;
   for(let i=1;i<legs.length;i++){
     const a=legs[i-1],b=legs[i],dist=Math.hypot(b.x-a.x,b.y-a.y);
     const carry=a.id===b.id;
     const spd=(d.atk&&d.atk.contra)?0.88:1.12; /* contra-ataque menos lento; jogadas normais mais pausadas */
-    const dur=(carry?Math.max(470,dist*1680):Math.max(430,dist*1400))*spd;
+    const dur=carry?(1100+Math.random()*900)*spd:Math.max(430,dist*1400)*spd; /* condução sem pressão: ~1-2s */
     RP.segs.push({t0:t,t1:t+dur,a,b,carry,i:RP.segs.length});t+=dur+(carry?0:140);
   }
   const last=legs[legs.length-1];
@@ -3530,16 +3571,24 @@ function rpFrame(now){
       rd.y=seg._r0.y+(seg.b.y-seg._r0.y)*ee;
     }
   }
+  /* último terço (perto da baliza atacada): os avançados afunilam para o centro, convergindo à baliza */
+  const FUNNEL_Y0=0.34;
+  const funnelX=(x,y)=>{
+    if(y==null||y>=FUNNEL_Y0)return x;
+    const depth=Math.min(1,(FUNNEL_Y0-y)/FUNNEL_Y0);
+    return x+(0.5-x)*depth*0.5;
+  };
   for(const dt of RP.dots){
     if(dt.id===cid||dt.gk)continue;
     if(seg&&!seg.carry&&!seg.shot&&dt.id===seg.b.id)continue; /* já tratado acima */
     /* antecipação: quem vai receber mais à frente desloca-se para lá */
     const fut=(RP.recv[dt.id]||[]).find(r=>r.si>si);
     if(fut){const fy=(dt.y0!=null&&fut.y>dt.y0+0.02)?dt.y0:fut.y; /* não recuar atrás do role */
-      dt.x+=(fut.x-dt.x)*0.030;dt.y+=(fy-dt.y)*0.030;}
+      const fx=funnelX(fut.x,fy);
+      dt.x+=(fx-dt.x)*0.030;dt.y+=(fy-dt.y)*0.030;}
     else{ /* bloco: a equipa desliza para a zona da bola preservando as posições relativas */
-      const tx=Math.max(0.05,Math.min(0.95,dt.x0+(bx-RP.b0.x)*0.40));
       const ty=Math.max(0.06,Math.min(0.985,dt.y0+(bv-RP.b0.y)*0.18+RP.tacY));
+      const tx=funnelX(Math.max(0.05,Math.min(0.95,dt.x0+(bx-RP.b0.x)*0.40)),ty);
       dt.x+=(tx-dt.x)*0.012;dt.y+=(ty-dt.y)*0.012;
     }
   }
