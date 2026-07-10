@@ -307,17 +307,29 @@ table.tbl .tn{max-width:140px}
     max-width:920px;margin:0 auto;width:100%;
   }
   #scr-main .content.nonav{padding-bottom:30px}
-  /* Geral, Calendário e Mercado: várias fichas empilhadas → organizam-se automaticamente
-     em 2 colunas, em vez de uma coluna infinita (mesma lógica da Tática: usar a largura
-     disponível). Provas/Plantel/Clube ficam a usar a largura toda — são normalmente
-     uma tabela ou ficha única, que fica melhor larga do que espremida a meio. */
-  #tab-content[data-tab="geral"],#tab-content[data-tab="play"],#tab-content[data-tab="market"]{
-    column-count:2;column-gap:20px;orphans:1;widows:1;
-  }
-  #tab-content[data-tab="geral"]>.card,#tab-content[data-tab="play"]>.card,#tab-content[data-tab="market"]>.card{
-    break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:16px;display:block;
-  }
+  /* Calendário e Mercado continuam a beneficiar de 2 colunas automáticas para os
+     seus cartões (jogos passados/futuros; resultados de pesquisa não entram aqui
+     porque o Mercado agora tem o seu próprio layout dedicado, ver .mkt-layout). */
+  #tab-content[data-tab="play"]{column-count:2;column-gap:20px;orphans:1;widows:1}
+  #tab-content[data-tab="play"]>.card{break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:16px;display:block}
   #scr-main .tac-layout{break-inside:avoid}
+
+  /* Geral: "Próximo jogo" + "Época" em destaque na coluna principal; Direção,
+     Mensagens e Baixas juntas numa coluna lateral mais estreita */
+  #scr-main .geral-layout{display:flex;align-items:flex-start;gap:20px}
+  #scr-main .geral-main{flex:1.4;min-width:0}
+  #scr-main .geral-side{flex:1;min-width:260px;max-width:340px}
+
+  /* Plantel: quando dividido em 2 colunas (renderSquad decide isso via JS,
+     só a partir de 860px), mostram-se lado a lado */
+  #scr-main .sq-cols{display:flex;gap:20px;align-items:flex-start}
+  #scr-main .sq-cols>.card{flex:1;min-width:0}
+
+  /* Mercado: a pesquisa é a área principal, larga; orçamento/propostas passam
+     para uma coluna lateral mais estreita */
+  #scr-main .mkt-layout{display:flex;align-items:flex-start;gap:20px}
+  #scr-main .mkt-main{flex:1.6;min-width:0}
+  #scr-main .mkt-side{flex:1;min-width:260px;max-width:320px}
 
   /* menu inicial e assistente de nova carreira: usar a largura real do ecrã, não uma
      coluna estreita tipo telemóvel — só o jogo/repetições precisam de ficar em retrato */
@@ -328,14 +340,18 @@ table.tbl .tn{max-width:140px}
   #scr-home .content,#scr-pick .content{max-width:1040px;margin:0 auto;width:100%}
   #scr-home .hero{padding-top:56px}
   #scr-home .hero h1{font-size:38px}
-  /* "As tuas carreiras" e "Instalar" lado a lado, centrados — flexbox em vez de
-     inline-block (que quebrava com o espaço em branco entre os elementos no HTML) */
-  #scr-home .content{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-  #scr-home .content .hero{flex:1 1 100%}
-  #scr-home .content .card{flex:1 1 420px;max-width:500px;margin:0}
+  /* ecrã inicial: os dois cartões empilhados, um por baixo do outro, mas centrados
+     numa coluna (não esticados de ponta a ponta) */
+  #scr-home .content{display:flex;flex-direction:column;align-items:center;gap:16px}
+  #scr-home .content .hero{width:100%}
+  #scr-home .content .card{width:100%;max-width:520px;margin:0}
   #scr-pick #pick-step2{max-width:1040px;margin:0 auto}
   #scr-pick .club-grid{grid-template-columns:repeat(6,1fr);gap:10px}
-  #scr-pick #pick-step1 .card{max-width:440px;margin-left:auto;margin-right:auto}
+  /* nome do treinador: caixa centrada vertical e horizontalmente no ecrã */
+  #scr-pick .content{display:flex;flex-direction:column;min-height:100%}
+  #pick-step1{flex:1;display:flex;align-items:center;justify-content:center}
+  #scr-pick #pick-step1 .card{max-width:440px;width:100%;margin:0}
+  #pick-step2{width:100%}
 
   /* jogo e repetições: o motor 2.5D foi desenhado em proporção retrato — mantém-se
      numa coluna central tipo "telemóvel" em vez de esticar para os lados */
@@ -1148,25 +1164,36 @@ const POSORD={GR:0,DD:1,DC:2,DE:3,MDF:4,MC:5,MCO:6,EXT:7,PL:8};
 <script>
 /* =================== PLANTEL =================== */
 window.morEmo=p=>{const m=p.mor??70;return m>=85?"😃":m>=60?"🙂":m>=40?"😐":"😟";};
-function renderSquad(c){
-  const t=G.teams[G.my];
-  const ps=[...t.players].sort((a,b)=>POSORD[a.pos]-POSORD[b.pos]||b.ovr-a.ovr);
-  const posCol={GR:"var(--amber)",D:"#7ab4ff",M:"#4fd98a",A:"#ff7aa8"};
-
-  const fitCol=v=>v>75?"var(--ok)":v>50?"var(--amber)":"var(--red)";
-  c.innerHTML=`<div class="card" style="padding:14px 10px">
-   <table class="sqt"><thead><tr>
-     <th class="ctr">POS</th><th>JOGADOR</th><th class="ctr">OVR</th><th class="rgt">FIT</th><th></th>
-   </tr></thead><tbody>
-   ${ps.map(p=>`<tr onclick="playerSheet(${p.id})">
+function sqRowHTML(p,fitCol){
+  return `<tr onclick="playerSheet(${p.id})">
      <td style="text-align:center;width:44px"><div class="posb pos-${posGroup(p.pos)}" style="margin:0 auto">${p.pos}</div></td>
      <td class="jc"><div class="pn" style="${p.inj?"color:var(--red)":""}">${flag(p)} ${p.n}${p.age<=23&&p.pot>=0.15?" <span style='color:var(--amber);font-size:11px'>★</span>":""}</div>
        <div class="ps">${ROLE_SHORT[p.nr]||ROLES[p.nr].n} · ${p.age} anos · ${fmtM(value(p))}</div></td>
      <td class="ovn ${ovrClass(p.ovr)}">${p.ovr}</td>
      <td class="fitn" style="color:${fitCol(p.sta)}">${Math.round(p.sta)}%</td>
      <td style="text-align:center;font-size:12px;width:24px">${p.inj?"<span style='color:var(--red);font-size:10px;font-weight:800'>"+injDays(p)+"d</span>":p.susp?"🟥":p.listed?"🏷":morEmo(p)}</td>
-   </tr>`).join("")}
-   </tbody></table></div>`;
+   </tr>`;
+}
+function sqTableHTML(rows){
+  return `<table class="sqt"><thead><tr>
+     <th class="ctr">POS</th><th>JOGADOR</th><th class="ctr">OVR</th><th class="rgt">FIT</th><th></th>
+   </tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderSquad(c){
+  const t=G.teams[G.my];
+  const ps=[...t.players].sort((a,b)=>POSORD[a.pos]-POSORD[b.pos]||b.ovr-a.ovr);
+  const fitCol=v=>v>75?"var(--ok)":v>50?"var(--amber)":"var(--red)";
+  const rows=ps.map(p=>sqRowHTML(p,fitCol));
+  if(window.innerWidth>=860&&ps.length>7){
+    // desktop: divide o plantel em 2 colunas para caberem todos sem scroll
+    const half=Math.ceil(rows.length/2);
+    c.innerHTML=`<div class="sq-cols">
+      <div class="card" style="padding:14px 10px">${sqTableHTML(rows.slice(0,half).join(""))}</div>
+      <div class="card" style="padding:14px 10px">${sqTableHTML(rows.slice(half).join(""))}</div>
+     </div>`;
+  }else{
+    c.innerHTML=`<div class="card" style="padding:14px 10px">${sqTableHTML(rows.join(""))}</div>`;
+  }
 }
 function playerSheet(id){
   const p=[...G.teams.flatMap(t=>[...t.players,...(t.academy&&t.academy.players||[])]),...(G.freeAgents||[])].find(x=>x.id===id);
@@ -2030,7 +2057,7 @@ function renderPlay(c){
   if(!G.cal[G.calIdx]){c.innerHTML=`<div class="card"><h3>Fim de época</h3><p style="font-size:14px;margin-bottom:6px">A época ${G.season}/${(G.season+1)%100} chegou ao fim!</p><button class="btn" onclick="newSeason()">Começar época ${G.season+1}/${(G.season+2)%100}</button></div>`+historyHTML();return}
   const mdToday=G.cal[G.calIdx];
   if(mdToday.cup&&!mdToday.fxc)mdToday.fxc=cupPairings(G.cups[mdToday.cup]);
-  const past=[],future=[];
+  let todayHTML="",pastRows=[],futureRows=[],pastCount=0;
   for(let i=0;i<G.cal.length;i++){
     const md=G.cal[i];
     const isToday=i===G.calIdx;
@@ -2038,50 +2065,60 @@ function renderPlay(c){
     const f=fxs.find(x=>x.h===G.my||x.a===G.my);
     const compN=md.cup?compName(md.cup):"Jornada "+md.rd;
     if(!f){
-      if(isToday)future.push(`<div class="card" style="border-color:var(--amber)">
+      if(isToday)todayHTML=`<div class="card" style="border-color:var(--amber)">
         <div class="dash-t">${compN} · ${dstr(md.date)}</div>
         <p class="sub" style="margin-bottom:10px">${md.cup?"Estás isento (ou fora) desta eliminatória.":"Sem jogo da tua equipa."}</p>
-        <button class="btn ghost" onclick="kickoff(0)">⏩ Avançar dia</button></div>`);
+        <button class="btn ghost" onclick="kickoff(0)">⏩ Avançar dia</button></div>`;
       continue;
     }
     const home=f.h===G.my,opp=G.teams[home?f.a:f.h];
     const title=`${home?G.teams[G.my].n:opp.n} <span class="sub" style="font-weight:600">vs</span> ${home?opp.n:G.teams[G.my].n}`;
     if(f.res){
+      pastCount++;
       const me=home?f.res[0]:f.res[1],op=home?f.res[1]:f.res[0];
       let lbl,col;
-      if(md.cup&&me===op){lbl=f.win===G.my?"VITÓRIA G.P.":"DERROTA G.P.";col=f.win===G.my?"var(--ok)":"var(--red)";}
-      else if(me>op){lbl="VITÓRIA";col="var(--ok)";}
-      else if(me===op){lbl="EMPATE";col="var(--amber)";}
-      else{lbl="DERROTA";col="var(--red)";}
-      past.push(`<div class="card" style="padding:12px 16px">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
-          <div class="grow">
-            <div class="sub mono" style="font-size:10px;letter-spacing:.12em;margin-bottom:3px">${compN.toUpperCase()}</div>
-            <div style="font-size:14.5px;font-weight:700">${title}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div class="mono" style="font-size:19px;font-weight:800;color:var(--amber)">${f.res[0]}–${f.res[1]}</div>
-            <div style="font-size:9.5px;font-weight:800;letter-spacing:.1em;color:${col}">${lbl}</div>
-          </div>
-        </div></div>`);
-    } else {
-      const ok2=xiValid();
-      future.push(`<div class="card" style="${isToday?"border-color:var(--amber);box-shadow:0 0 0 1px var(--amber);":""}padding:14px 16px">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
-          <div class="grow">
-            <div class="sub mono" style="font-size:10px;letter-spacing:.12em;margin-bottom:3px">${compN.toUpperCase()} · ${dstr(md.date)}</div>
-            <div style="font-size:15px;font-weight:700">${title}</div>
-            <div class="sub" style="margin-top:3px">${home?"🏠 CASA":"✈️ FORA"}</div>
-          </div>
-          ${isToday?`<button class="btn" style="width:auto;padding:11px 16px;flex-shrink:0" ${ok2?"":"disabled"} onclick="kickoff(1)">JOGAR ▶</button>`
-            :`<span class="sub mono" style="font-size:9.5px;letter-spacing:.1em;background:var(--card2);padding:5px 9px;border-radius:7px;flex-shrink:0">POR JOGAR</span>`}
+      if(md.cup&&me===op){lbl=f.win===G.my?"V G.P.":"D G.P.";col=f.win===G.my?"var(--ok)":"var(--red)";}
+      else if(me>op){lbl="V";col="var(--ok)";}
+      else if(me===op){lbl="E";col="var(--amber)";}
+      else{lbl="D";col="var(--red)";}
+      pastRows.push(`<div class="list-item" style="cursor:default">
+        <div class="grow" style="min-width:0">
+          <div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div>
+          <div class="sub" style="font-size:10.5px;margin-top:1px">${compN} · ${dstr(md.date)}</div>
         </div>
-        ${isToday?`${ok2?"":'<p style="color:var(--red);font-size:12.5px;margin-top:8px">⚠ Onze incompleto — vai à Tática.</p>'}
-        <button class="btn ghost" style="margin-top:10px" ${ok2?"":"disabled"} onclick="kickoff(0)">⏩ Simular jornada</button>`:""}
+        <div class="mono" style="font-size:14.5px;font-weight:800;flex-shrink:0">${f.res[0]}–${f.res[1]}</div>
+        <span class="fb ${lbl.slice(0,1)}" style="flex-shrink:0">${lbl.slice(0,1)}</span>
+      </div>`);
+    } else if(isToday){
+      const ok2=xiValid();
+      todayHTML=`<div class="card" style="border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)">
+        <div class="dash-t">Hoje · ${compN}</div>
+        <div class="nextmatch">
+          <div class="nm-team"><div class="nm-crest">${crest(home?G.teams[G.my]:opp,1)}</div><div class="nm-name">${home?G.teams[G.my].n:opp.n}</div></div>
+          <div class="nm-vs">VS</div>
+          <div class="nm-team"><div class="nm-crest">${crest(home?opp:G.teams[G.my],1)}</div><div class="nm-name">${home?opp.n:G.teams[G.my].n}</div></div>
+        </div>
+        <div class="sub mono nm-info">${home?"CASA":"FORA"} · ${dstr(md.date)}</div>
+        ${ok2?"":'<p style="color:var(--red);font-size:12.5px;margin:8px 0;text-align:center">⚠ O teu onze não está completo — vai à Tática.</p>'}
+        <div class="row nm-btns" style="margin-top:10px">
+          <button class="btn" ${ok2?"":"disabled"} onclick="kickoff(1)">JOGAR ▶</button>
+          <button class="btn ghost" ${ok2?"":"disabled"} onclick="kickoff(0)">⏩ Simular</button>
+        </div>
+      </div>`;
+    } else {
+      futureRows.push(`<div class="list-item" style="cursor:default">
+        <div class="grow" style="min-width:0">
+          <div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div>
+          <div class="sub" style="font-size:10.5px;margin-top:1px">${compN} · ${dstr(md.date)}</div>
+        </div>
+        <span class="sub mono" style="font-size:9.5px;letter-spacing:.08em;flex-shrink:0">${home?"🏠":"✈️"}</span>
       </div>`);
     }
   }
-  c.innerHTML=(past.length?`<div class="card" style="padding:12px 16px"><h3 onclick="togglePast()" style="cursor:pointer;margin:0;font-size:13.5px">${pastOpen?"▾":"▸"} Jogos disputados (${past.length})</h3></div>${pastOpen?past.join(""):""}`:"")+future.join("");
+  if(!todayHTML)todayHTML=`<div class="card"><div class="dash-t">Hoje</div><p class="sub">Sem jogo agendado.</p></div>`;
+  c.innerHTML=todayHTML
+   +(futureRows.length?`<div class="card"><h3>Próximos jogos (${futureRows.length})</h3>${futureRows.join("")}</div>`:"")
+   +(pastRows.length?`<div class="card"><h3 onclick="togglePast()" style="cursor:pointer">${pastOpen?"▾":"▸"} Jogos disputados (${pastCount})</h3>${pastOpen?pastRows.join(""):""}</div>`:"");
 }
 function kickoff(interactive){
   // propostas pendentes bloqueiam o avanço do jogo
@@ -2503,8 +2540,7 @@ function renderMarket(c){
   const PER=6,pages=Math.max(1,Math.ceil(filtered.length/PER));
   mktPage=clamp(mktPage,0,pages-1);
   const all=filtered.slice(mktPage*PER,(mktPage+1)*PER);
-  c.innerHTML=`
-   <div class="card">
+  const sideHTML=`<div class="card">
     <div class="row" style="justify-content:space-between;align-items:center">
       <h3 style="margin:0">Mercado</h3>
       <b style="font-size:13px;color:${G.windowOpen?"var(--ok)":"var(--red)"}">${G.windowOpen?"🟢 Aberto":"🔴 Fechado"}</b>
@@ -2520,8 +2556,8 @@ function renderMarket(c){
         <div class="offer-actions"><button class="btn sm" onclick="acceptOffer(${i})">Aceitar</button>
         ${(o.rounds||0)<2?`<button class="btn sm ghost" style="color:var(--amber);border-color:rgba(255,184,28,.4)" onclick="negSheet(${i})">Negociar</button>`:""}
         <button class="btn sm ghost" onclick="rejectOffer(${i})">Recusar</button></div></div>`}).join("")}</div>`:""}
-   </div>
-   <div class="card"><h3>🔎 Procurar jogadores</h3>
+   </div>`;
+  const mainHTML=`<div class="card"><h3>🔎 Procurar jogadores</h3>
     <input placeholder="Nome do jogador..." value="${mktQ}" oninput="mktQ=this.value.toLowerCase();mktPage=0" onchange="setTab('market')" style="width:100%;margin-bottom:8px">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
      <select onchange="mktPos=this.value;if(mktPos&&mktRole&&!GROUP_ROLES[mktPos].includes(mktRole))mktRole='';mktPage=0;setTab('market')">
@@ -2551,6 +2587,7 @@ function renderMarket(c){
       <span class="sub mono">${mktPage+1} / ${pages}</span>
       <button class="btn ghost sm" style="width:auto;padding:8px 14px" ${mktPage>=pages-1?"disabled":""} onclick="mktPage++;setTab('market')">Seguinte ›</button>
     </div>`:""}</div>`;
+  c.innerHTML=`<div class="mkt-layout"><div class="mkt-main">${mainHTML}</div><div class="mkt-side">${sideHTML}</div></div>`;
 }
 function bidFlow(pid){
   if(G.teams[G.my].players.length>=21){toast("Plantel no limite (21/21) — dispensa alguém primeiro");return;}
@@ -3957,8 +3994,7 @@ function renderGeral(c){
     <div class="kv"><span>Reputação de treinador</span><b>${Math.round(G.rep)}/100</b></div>
     <div style="margin-top:7px"><div class="sub" style="margin-bottom:4px">Confiança da direção · ${Math.round(B.conf)}%${G.records.streak>=3?" · 🔥 "+G.records.streak+" vitórias seguidas":""}</div>
     <div style="height:8px;background:var(--card2);border-radius:6px;overflow:hidden"><div style="height:100%;width:${B.conf}%;background:${B.conf>60?"var(--ok)":B.conf>30?"var(--amber)":"var(--red)"}"></div></div></div></div>`):"";
-  c.innerHTML=nextHTML+bd+`
-   <div class="card"><div class="dash-t">Época</div>
+  const epocaHTML=`<div class="card"><div class="dash-t">Época</div>
     <div class="stat4">
       <div class="bx"><b>${pos}º</b><span>POS</span></div>
       <div class="bx"><b>${T.pts}</b><span>PTS</span></div>
@@ -3969,17 +4005,21 @@ function renderGeral(c){
       <span class="sub mono" style="letter-spacing:.14em;font-size:11px">FORMA</span>
       <div>${formArr.length?formArr.map(r=>`<span class="fb ${r}">${r}</span>`).join(""):'<span class="sub">—</span>'}</div>
     </div>
-   </div>
-   <div class="card"><div class="row" style="justify-content:space-between;align-items:baseline"><div class="dash-t">Mensagens</div>
+   </div>`;
+  const msgHTML=`<div class="card"><div class="row" style="justify-content:space-between;align-items:baseline"><div class="dash-t">Mensagens</div>
      <span class="sub" style="cursor:pointer" onclick="showInbox()">Ver todas ›</span></div>
     ${G.inbox.length?G.inbox.slice(0,2).map(m=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)" onclick="showInbox()">
       <div style="font-size:13.5px">${m.t}</div><div class="sub mono" style="font-size:10.5px;margin-top:2px">${dstr(m.d)}</div></div>`).join(""):'<p class="sub">Sem mensagens.</p>'}
-   </div>
-   <div class="card"><div class="dash-t">Baixas</div>
+   </div>`;
+  const baixasHTML=`<div class="card"><div class="dash-t">Baixas</div>
     ${baixas.length?baixas.map(p=>`<div class="row" style="justify-content:space-between;padding:5px 0">
       <span style="font-size:13.5px">${flag(p)} ${p.n}</span>
       ${p.inj?'<span style="font-size:12px;color:var(--red)">Lesionado · ~'+injDays(p)+'d</span>':p.susp?'<span style="font-size:12px;color:var(--red)">🟥 Suspenso</span>':'<span style="font-size:12px;color:var(--amber)">🔋 Cansado '+Math.round(p.sta)+'%</span>'}</div>`).join("")
      :'<p style="font-size:14px">Nenhuma baixa ✅</p>'}
+   </div>`;
+  c.innerHTML=`<div class="geral-layout">
+    <div class="geral-main">${nextHTML}${epocaHTML}</div>
+    <div class="geral-side">${bd}${msgHTML}${baixasHTML}</div>
    </div>`;
 }
 </script>
