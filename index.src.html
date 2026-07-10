@@ -2560,6 +2560,19 @@ function marketAI(){ // a IA faz propostas e negoceia entre si nas janelas
 }
 /* =================== ARRANQUE =================== */
 if("serviceWorker" in navigator){try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}}
+/* ---- estatísticas pessoais: contador de partidas (CountAPI, gratuito, sem registo) ---- */
+const STATS_NS="mister11-gcalvinho-app-v1";
+try{fetch("https://api.countapi.xyz/hit/"+STATS_NS+"/plays").catch(()=>{})}catch(e){}
+if(new URLSearchParams(location.search).get("stats")==="1"){
+  const panel=document.createElement("div");
+  panel.style.cssText="position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;right:10px;z-index:99999;background:#0B231A;border:1px solid #FFB81C;border-radius:12px;padding:14px 16px;color:#EFEDE3;font:600 13px system-ui;box-shadow:0 8px 24px rgba(0,0,0,.5);line-height:1.7";
+  panel.innerHTML="📊 <b>Estatísticas</b><br>A carregar…";
+  document.body.appendChild(panel);
+  fetch("https://api.countapi.xyz/get/"+STATS_NS+"/plays").then(r=>r.json()).then(d=>{
+    panel.innerHTML="📊 <b>Estatísticas · Mister 11</b><br>Partidas iniciadas: <b>"+(d.value??"—")+"</b><br><span style=\"opacity:.55;font-size:11.5px\">Jogadores em simultâneo: por configurar</span>";
+  }).catch(()=>{panel.innerHTML="📊 Estatísticas indisponíveis (sem ligação)";});
+  panel.addEventListener("click",()=>panel.remove());
+}
 document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});
 document.addEventListener("gesturechange",e=>e.preventDefault(),{passive:false});
 document.addEventListener("dblclick",e=>e.preventDefault(),{passive:false});
