@@ -261,6 +261,71 @@ table.tbl .tn{max-width:140px}
 .inbox-item b{font-size:13.5px;display:block}
 .inbox-item p{font-size:12.5px;color:var(--muted);margin-top:2px}
 .offer-actions{display:flex;gap:8px;margin-top:8px}
+
+/* ===================================================================
+   ADAPTAÇÃO A ECRÃ LARGO (desktop/tablet) — só ativa a partir de 860px.
+   Em telemóvel (a maioria dos casos) nada disto se aplica. */
+@media (min-width:860px){
+  :root{--sidebar-w:236px}
+  html,body{overflow:hidden}
+  body{background:#050e09}
+  /* moldura subtil por trás da app, para não ficar tudo colado às margens do monitor */
+  body::before{content:"";position:fixed;inset:0;background:
+    radial-gradient(1200px 800px at 50% -10%,rgba(255,184,28,.05),transparent 60%),
+    var(--pitch);z-index:-1}
+
+  /* navegação: de barra inferior para coluna lateral fixa */
+  .tabbar{
+    left:0;right:auto;top:0;bottom:0;width:var(--sidebar-w);height:100%;
+    flex-direction:column;justify-content:flex-start;align-items:stretch;
+    padding:0 0 16px;border-top:none;border-right:1px solid var(--line);
+    gap:2px;overflow-y:auto;
+  }
+  .tabbar::before{
+    content:"⚽  MISTER 11";display:block;padding:22px 22px 18px;
+    font-weight:800;font-size:14px;letter-spacing:.04em;color:var(--amber);
+    border-bottom:1px solid var(--line);margin-bottom:10px;
+  }
+  .tabbar button{
+    flex:none;flex-direction:row;justify-content:flex-start;align-items:center;
+    gap:13px;padding:12px 22px;font-size:13.5px;font-weight:700;
+    border-radius:0;color:var(--muted);transition:background .15s,color .15s;
+  }
+  .tabbar button .ic{font-size:17px;line-height:1}
+  .tabbar button:hover{background:var(--card2);color:var(--chalk)}
+  .tabbar button.on{background:rgba(255,184,28,.08)}
+  .tabbar button.on::before{
+    content:"";position:absolute;top:6px;bottom:6px;left:0;right:auto;
+    width:3px;height:auto;border-radius:0 3px 3px 0;background:var(--amber);
+  }
+
+  /* só o ecrã principal (o único com a barra lateral lá dentro) reserva essa coluna */
+  #scr-main{left:var(--sidebar-w)}
+  #scr-main .appbar{padding-left:26px;padding-right:26px}
+  #scr-main .content{
+    padding-left:26px;padding-right:26px;padding-bottom:30px;
+    max-width:920px;margin:0 auto;width:100%;
+  }
+  #scr-main .content.nonav{padding-bottom:30px}
+
+  /* restantes ecrãs (menu inicial, criar carreira, jogo, repetições, tática ao vivo):
+     o motor 2.5D e os menus foram desenhados em proporção retrato — mantêm-se numa
+     coluna central tipo "telemóvel" em vez de esticar para os lados */
+  #scr-home,#scr-pick,#scr-match,#scr-livetact,#replay,.golflash{
+    left:50%;right:auto;transform:translateX(-50%);
+    width:min(500px,100vw);box-shadow:0 0 90px rgba(0,0,0,.55);
+    border-left:1px solid var(--line);border-right:1px solid var(--line);
+  }
+
+  /* toques de interatividade que fazem sentido com rato, não com dedo */
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost:hover{background:var(--line)}
+  .sqt tr:hover td{background:rgba(255,255,255,.035)}
+  .card{cursor:default}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+}
 </style>
 </head>
 <body>
