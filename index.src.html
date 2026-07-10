@@ -2561,12 +2561,17 @@ function marketAI(){ // a IA faz propostas e negoceia entre si nas janelas
 /* =================== ARRANQUE =================== */
 if("serviceWorker" in navigator){try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}}
 /* ---- estatísticas pessoais: partidas totais (CountAPI) + jogadores em simultâneo (Firebase RTDB) ---- */
-const STATS_NS="mister11-gcalvinho-app-v1";
+const STATS_NS="mister11-gcalvinho-app-v1-plays"; /* countapi.mileshilliard.com não usa namespace: chave única */
 const RTDB_URL="https://mister-11-default-rtdb.europe-west1.firebasedatabase.app";
 const RTDB_SID=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+"-"+Math.random().toString(36).slice(2));
-try{fetch("https://api.countapi.xyz/hit/"+STATS_NS+"/plays").catch(()=>{})}catch(e){}
+/* fetch com limite de tempo: nunca deixa o painel preso "a carregar" se um serviço cair */
+function fetchT(url,opts,ms){
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms||6000);
+  return fetch(url,Object.assign({},opts,{signal:ac.signal})).finally(()=>clearTimeout(t));
+}
+try{fetchT("https://countapi.mileshilliard.com/api/v1/hit/"+STATS_NS).catch(()=>{})}catch(e){}
 /* presença: "batimento" a cada 20s; uma sessão conta-se como ativa se bateu nos últimos 45s */
-function rtdbBeat(){try{fetch(RTDB_URL+"/presence/"+RTDB_SID+".json",{method:"PUT",body:JSON.stringify({ts:Date.now()})}).catch(()=>{})}catch(e){}}
+function rtdbBeat(){try{fetchT(RTDB_URL+"/presence/"+RTDB_SID+".json",{method:"PUT",body:JSON.stringify({ts:Date.now()})}).catch(()=>{})}catch(e){}}
 rtdbBeat();setInterval(rtdbBeat,20000);
 function rtdbLeave(){try{fetch(RTDB_URL+"/presence/"+RTDB_SID+".json",{method:"DELETE",keepalive:true}).catch(()=>{})}catch(e){}}
 window.addEventListener("pagehide",rtdbLeave);
@@ -2578,13 +2583,14 @@ if(new URLSearchParams(location.search).get("stats")==="1"){
   document.body.appendChild(panel);
   function refreshStats(){
     Promise.all([
-      fetch("https://api.countapi.xyz/get/"+STATS_NS+"/plays").then(r=>r.json()).catch(()=>null),
-      fetch(RTDB_URL+"/presence.json").then(r=>r.json()).catch(()=>null)
+      fetchT("https://countapi.mileshilliard.com/api/v1/get/"+STATS_NS).then(r=>r.json()).catch(()=>null),
+      fetchT(RTDB_URL+"/presence.json").then(r=>r.json()).catch(()=>null)
     ]).then(([plays,pres])=>{
       const now=Date.now();
       const active=pres?Object.values(pres).filter(v=>v&&typeof v.ts==="number"&&(now-v.ts)<45000).length:0;
-      panel.innerHTML="📊 <b>Estatísticas · Mister 11</b><br>Partidas iniciadas: <b>"+(plays&&plays.value!=null?plays.value:"—")+"</b><br>Jogadores agora: <b>"+active+"</b><br><span style=\"opacity:.5;font-size:11px\">toca para fechar · atualiza a cada 15s</span>";
-    });
+      const pv=plays&&plays.value!=null?plays.value:"—";
+      panel.innerHTML="📊 <b>Estatísticas · Mister 11</b><br>Partidas iniciadas: <b>"+pv+"</b><br>Jogadores agora: <b>"+active+"</b><br><span style=\"opacity:.5;font-size:11px\">toca para fechar · atualiza a cada 15s</span>";
+    }).catch(()=>{panel.innerHTML="📊 Estatísticas indisponíveis de momento (toca para fechar)";});
   }
   refreshStats();
   const statsT=setInterval(refreshStats,15000);
