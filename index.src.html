@@ -307,6 +307,17 @@ table.tbl .tn{max-width:140px}
     max-width:920px;margin:0 auto;width:100%;
   }
   #scr-main .content.nonav{padding-bottom:30px}
+  /* Geral, Calendário e Mercado: várias fichas empilhadas → organizam-se automaticamente
+     em 2 colunas, em vez de uma coluna infinita (mesma lógica da Tática: usar a largura
+     disponível). Provas/Plantel/Clube ficam a usar a largura toda — são normalmente
+     uma tabela ou ficha única, que fica melhor larga do que espremida a meio. */
+  #tab-content[data-tab="geral"],#tab-content[data-tab="play"],#tab-content[data-tab="market"]{
+    column-count:2;column-gap:20px;orphans:1;widows:1;
+  }
+  #tab-content[data-tab="geral"]>.card,#tab-content[data-tab="play"]>.card,#tab-content[data-tab="market"]>.card{
+    break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:16px;display:block;
+  }
+  #scr-main .tac-layout{break-inside:avoid}
 
   /* menu inicial e assistente de nova carreira: usar a largura real do ecrã, não uma
      coluna estreita tipo telemóvel — só o jogo/repetições precisam de ficar em retrato */
@@ -317,9 +328,11 @@ table.tbl .tn{max-width:140px}
   #scr-home .content,#scr-pick .content{max-width:1040px;margin:0 auto;width:100%}
   #scr-home .hero{padding-top:56px}
   #scr-home .hero h1{font-size:38px}
-  /* "As tuas carreiras" e "Instalar" lado a lado em vez de empilhados */
-  #scr-home .content .card{display:inline-block;width:calc(50% - 8px);vertical-align:top;box-sizing:border-box}
-  #scr-home .content .card:nth-of-type(odd){margin-right:16px}
+  /* "As tuas carreiras" e "Instalar" lado a lado, centrados — flexbox em vez de
+     inline-block (que quebrava com o espaço em branco entre os elementos no HTML) */
+  #scr-home .content{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+  #scr-home .content .hero{flex:1 1 100%}
+  #scr-home .content .card{flex:1 1 420px;max-width:500px;margin:0}
   #scr-pick #pick-step2{max-width:1040px;margin:0 auto}
   #scr-pick .club-grid{grid-template-columns:repeat(6,1fr);gap:10px}
   #scr-pick #pick-step1 .card{max-width:440px;margin-left:auto;margin-right:auto}
@@ -1103,6 +1116,7 @@ function setTab(t){
   const same=(t===tab);
   const c=$("tab-content");const keepY=same?c.scrollTop:0;
   tab=t;
+  c.dataset.tab=t;
   document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   c.scrollTop=keepY;
   if(t==="squad")renderSquad(c);
@@ -1133,13 +1147,13 @@ const POSORD={GR:0,DD:1,DC:2,DE:3,MDF:4,MC:5,MCO:6,EXT:7,PL:8};
 </script>
 <script>
 /* =================== PLANTEL =================== */
+window.morEmo=p=>{const m=p.mor??70;return m>=85?"😃":m>=60?"🙂":m>=40?"😐":"😟";};
 function renderSquad(c){
   const t=G.teams[G.my];
   const ps=[...t.players].sort((a,b)=>POSORD[a.pos]-POSORD[b.pos]||b.ovr-a.ovr);
   const posCol={GR:"var(--amber)",D:"#7ab4ff",M:"#4fd98a",A:"#ff7aa8"};
 
   const fitCol=v=>v>75?"var(--ok)":v>50?"var(--amber)":"var(--red)";
-  window.morEmo=p=>{const m=p.mor??70;return m>=85?"😃":m>=60?"🙂":m>=40?"😐":"😟";};
   c.innerHTML=`<div class="card" style="padding:14px 10px">
    <table class="sqt"><thead><tr>
      <th class="ctr">POS</th><th>JOGADOR</th><th class="ctr">OVR</th><th class="rgt">FIT</th><th></th>
