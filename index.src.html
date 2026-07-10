@@ -747,7 +747,7 @@ function makePlayer(name,pos,age,ovr,teamIdx,gen){
 }
 function value(p){
   const af=p.age<=21?1.5:p.age<=24?1.3:p.age<=28?1.0:p.age<=31?0.6:0.3;
-  return Math.max(25,Math.round(Math.pow(Math.max(p.ovr-40,5),2.15)*af*1.45))*1000;
+  return Math.max(25,Math.round(Math.pow(Math.max(p.ovr-40,5),2.15)*af*1.9))*1000;
 }
 const wage=p=>Math.max(20000,Math.round(value(p)*0.16/5000)*5000);
 function renewFee(p){return Math.max(2e4,Math.round(wage(p)*1.5/1e4)*1e4);}
@@ -3374,62 +3374,6 @@ function rpLine(C,u0,v0,u1,v1,w,col){
   C.strokeStyle=col||"rgba(255,255,255,.65)";C.lineWidth=w||1.5;
   C.beginPath();C.moveTo(a.x,a.y);C.lineTo(b.x,b.y);C.stroke();
 }
-function rpHash(i){ /* pseudo-aleatório determinístico (mesma cena em todos os frames, sem tremeliques) */
-  const x=Math.sin(i*12.9898+4.1414)*43758.5453;
-  return x-Math.floor(x);
-}
-function rpFloodlight(C,u,v,tall){
-  const base=rpP(u,v,0),top=rpP(u,v,tall?0.62:0.46);
-  C.strokeStyle="rgba(180,190,185,.5)";C.lineWidth=Math.max(1,1.6*base.s);
-  C.beginPath();C.moveTo(base.x,base.y);C.lineTo(top.x,top.y);C.stroke();
-  const glow=C.createRadialGradient(top.x,top.y,1,top.x,top.y,26*top.s);
-  glow.addColorStop(0,"rgba(255,244,210,.85)");glow.addColorStop(0.4,"rgba(255,232,170,.30)");glow.addColorStop(1,"rgba(255,232,170,0)");
-  C.fillStyle=glow;C.beginPath();C.arc(top.x,top.y,26*top.s,0,7);C.fill();
-  C.fillStyle="#EFE6C8";C.beginPath();C.arc(top.x,top.y,Math.max(1.4,2.6*top.s),0,7);C.fill();
-}
-function rpStadiumDraw(C){
-  /* Bancada desenhada em coordenadas FIXAS do ecrã (não do campo): a zona "céu" no topo nunca
-     sofre o zoom/pan da câmara, por isso é o único sítio onde um grafismo de estádio fica sempre visível. */
-  const W=RP.W,H=RP.H,bandH=H*0.20;
-  /* sombra do telhado da bancada */
-  const roof=C.createLinearGradient(0,0,0,bandH);
-  roof.addColorStop(0,"#050C08");roof.addColorStop(1,"rgba(5,12,8,0)");
-  C.fillStyle=roof;C.fillRect(0,0,W,bandH*0.55);
-  /* fileiras de bancada (tons alternados) */
-  const tiers=4;
-  for(let t=0;t<tiers;t++){
-    const y0=bandH*0.30+((bandH*0.95-bandH*0.30)*t/tiers),y1=bandH*0.30+((bandH*0.95-bandH*0.30)*(t+1)/tiers);
-    C.fillStyle=t%2===0?"#132A1E":"#0D2016";C.fillRect(0,y0,W,y1-y0);
-    /* "adeptos": pequenos blocos de cor dispersos */
-    const cols=Math.round(W/9);
-    for(let c=0;c<cols;c++){
-      const h=rpHash(1000+t*97+c*13);
-      if(h<0.6)continue;
-      const cx=(c+0.5)*(W/cols),cy=y0+(y1-y0)*(0.25+rpHash(2000+t*211+c*7)*0.55);
-      const tone=rpHash(3000+c*31+t*3);
-      C.fillStyle=tone<0.5?"rgba(232,226,208,.6)":"rgba(120,142,168,.48)";
-      const rsz=2+ (t/tiers)*1.6;
-      C.fillRect(cx-rsz/2,cy-rsz/2,rsz,rsz);
-    }
-  }
-  /* holofotes: dois postes fixos perto dos cantos superiores */
-  rpFloodlightScreen(C,W*0.11,bandH*0.98,bandH*0.62);
-  rpFloodlightScreen(C,W*0.89,bandH*0.98,bandH*0.62);
-  /* vinhetas discretas nos 4 cantos, sugerindo a bancada a envolver o campo */
-  const cs=Math.min(W,H)*0.16;
-  const cg1=C.createRadialGradient(0,0,2,0,0,cs);cg1.addColorStop(0,"rgba(4,10,7,.85)");cg1.addColorStop(1,"rgba(4,10,7,0)");
-  C.fillStyle=cg1;C.beginPath();C.arc(0,0,cs,0,7);C.fill();
-  const cg2=C.createRadialGradient(W,0,2,W,0,cs);cg2.addColorStop(0,"rgba(4,10,7,.85)");cg2.addColorStop(1,"rgba(4,10,7,0)");
-  C.fillStyle=cg2;C.beginPath();C.arc(W,0,cs,0,7);C.fill();
-}
-function rpFloodlightScreen(C,x,yBase,h){
-  C.strokeStyle="rgba(180,190,185,.55)";C.lineWidth=2;
-  C.beginPath();C.moveTo(x,yBase);C.lineTo(x,yBase-h);C.stroke();
-  const glow=C.createRadialGradient(x,yBase-h,1,x,yBase-h,26);
-  glow.addColorStop(0,"rgba(255,244,210,.9)");glow.addColorStop(0.4,"rgba(255,232,170,.32)");glow.addColorStop(1,"rgba(255,232,170,0)");
-  C.fillStyle=glow;C.beginPath();C.arc(x,yBase-h,26,0,7);C.fill();
-  C.fillStyle="#EFE6C8";C.beginPath();C.arc(x,yBase-h,2.6,0,7);C.fill();
-}
 function rpPitchDraw(C){
   const W=RP.W,H=RP.H;
   /* céu / estádio */
@@ -3787,8 +3731,6 @@ function rpFrame(now){
       C.fillStyle="rgba(255,255,255,"+(1-rr)*0.28+")";C.fillRect(camx-W,camy-H,W*2,H*2);}
   }
   C.restore();
-  /* estádio: camada fixa em espaço de ecrã puro (fora da transformação da câmara, nunca sofre zoom/pan) */
-  rpStadiumDraw(C);
   /* fim */
   if(RP.phase==="gol"&&t>RP.phT+(RP.out==="goal"?2050:1600)){
     RP.phase="fade";
