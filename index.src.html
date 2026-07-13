@@ -1163,6 +1163,7 @@ const POSORD={GR:0,DD:1,DC:2,DE:3,MDF:4,MC:5,MCO:6,EXT:7,PL:8};
 </script>
 <script>
 /* =================== PLANTEL =================== */
+const SQUAD_MAX=25; /* limite de jogadores no plantel */
 window.morEmo=p=>{const m=p.mor??70;return m>=85?"😃":m>=60?"🙂":m>=40?"😐":"😟";};
 function sqRowHTML(p,fitCol){
   return `<tr onclick="playerSheet(${p.id})">
@@ -1238,6 +1239,13 @@ function toggleList(id){const p=G.teams[G.my].players.find(x=>x.id===id);p.liste
 
 /* =================== TÁTICA: GRELHA + DRAG & DROP =================== */
 /* tactic = {grid:{ "r-c":{pid,role} }, ment, press, contra, posse} */
+function applyFormation(name){
+  if(!FORMATIONS[name])return;
+  const t=G.teams[G.my];
+  const r=fillFormation(t,FORMATIONS[name]);
+  G.tactic.grid=r.grid;
+  retact();toast("Formação "+name+" aplicada com o melhor onze disponível");
+}
 function autoTactic(){ // 4-3-3 inicial com os melhores
   const t=G.teams[G.my],used=new Set(),grid={};
   const best=(roles,zone)=>{
@@ -1279,6 +1287,11 @@ function renderTactics(c){
    <p class="sub" style="margin-top:10px;line-height:1.5">💡 Arrasta as bolinhas vazias para desenhar a formação · toca numa zona livre para criar uma posição · arrasta uma bolinha para fora do campo para a remover.</p>
    </div>
    <div class="tac-side-col">
+   <div class="card" style="margin-bottom:10px;padding:10px 12px">
+     <div class="dash-t" style="margin:0 0 8px">Formação rápida</div>
+     <div class="seg seg-scroll">${Object.keys(FORMATIONS).map(f=>`<button onclick="applyFormation('${f}')">${f}</button>`).join("")}</div>
+     <p class="sub" style="margin-top:6px;font-size:11px">Preenche automaticamente com o teu melhor onze nessa formação.</p>
+   </div>
    <div class="card" style="margin-bottom:10px;padding:10px 12px">
      <div class="row" style="justify-content:space-between;align-items:center;cursor:pointer" onclick="tacInstrOpen=!tacInstrOpen;setTab('tactics')">
        <div class="dash-t" style="margin:0">Instruções</div>
@@ -1374,7 +1387,7 @@ function bindDnD(){
     const dx=e.clientX-sx,dy=e.clientY-sy;
     if(!mode){
       if(Math.hypot(dx,dy)<8)return;
-      if(slotKey==null&&!fromCell&&dy>=-10&&Math.abs(dx)>Math.abs(dy)*1.2)mode="scroll"; // só horizontal (e não p/ cima) = scroll; p/ cima = arrastar p/ campo
+      if(slotKey==null&&!fromCell&&dy>=-6&&Math.abs(dx)>Math.abs(dy)*2.6)mode="scroll"; // só claramente horizontal = scroll; qualquer intenção de subir = arrastar p/ campo
       else{mode="drag";mkGhost();}
     }
     if(mode==="scroll"){if(benchEl)benchEl.scrollLeft-=(e.clientX-lx);lx=e.clientX;return;}
@@ -2553,7 +2566,7 @@ function renderMarket(c){
        const p=t.players.find(x=>x.id===o.pid);if(!p){o.dead=1;return""}
        return `<div class="inbox-item"><b>${G.teams[o.from].n} oferece ${fmtM(o.amt)} por ${p.n}</b>
         <p>Overall ${p.ovr} · valor de mercado ${fmtM(value(p))}</p>
-        <div class="offer-actions"><button class="btn sm" onclick="acceptOffer(${i})">Aceitar</button>
+        <div class="offer-actions"><button class="btn sm" onclick="askAcceptOffer(${i})">Aceitar</button>
         ${(o.rounds||0)<2?`<button class="btn sm ghost" style="color:var(--amber);border-color:rgba(255,184,28,.4)" onclick="negSheet(${i})">Negociar</button>`:""}
         <button class="btn sm ghost" onclick="rejectOffer(${i})">Recusar</button></div></div>`}).join("")}</div>`:""}
    </div>`;
@@ -2590,7 +2603,7 @@ function renderMarket(c){
   c.innerHTML=`<div class="mkt-layout"><div class="mkt-main">${mainHTML}</div><div class="mkt-side">${sideHTML}</div></div>`;
 }
 function bidFlow(pid){
-  if(G.teams[G.my].players.length>=21){toast("Plantel no limite (21/21) — dispensa alguém primeiro");return;}
+  if(G.teams[G.my].players.length>=SQUAD_MAX){toast("Plantel no limite ("+SQUAD_MAX+"/"+SQUAD_MAX+") — dispensa alguém primeiro");return;}
   if(!G.windowOpen){toast("O mercado está fechado");return}
   const p=G.teams.flatMap(t=>t.players).find(x=>x.id===pid);
   const v=value(p),t=G.teams[G.my];
@@ -2629,7 +2642,7 @@ function sendBid(pid){
 }
 function signFree(pid){
   const t=G.teams[G.my];
-  if(t.players.length>=21){toast("Plantel no limite (21/21) — dispensa alguém primeiro");return;}
+  if(t.players.length>=SQUAD_MAX){toast("Plantel no limite ("+SQUAD_MAX+"/"+SQUAD_MAX+") — dispensa alguém primeiro");return;}
   const p=(G.freeAgents||[]).find(x=>x.id===pid);
   if(!p){toast("Já não está disponível");return;}
   if(wage(p)>t.budget){toast("Não consegues pagar o salário: "+fmtM(wage(p))+"/época");return;}
@@ -2639,6 +2652,21 @@ function signFree(pid){
   closeSheet();toast("Contratado a custo zero: "+p.n.split(" ").slice(-1)[0]+" ✍");
   pushNews("✍ Contratação livre",p.n+" ("+p.ovr+", "+p.age+" anos) assina pelo "+t.n+" a custo zero.");
   saveGame();refreshHeader();setTab("market");
+}
+function askAcceptOffer(i){
+  const o=G.offersIn[i];if(!o||o.dead){setTab("market");return;}
+  const t=G.teams[G.my],buyer=G.teams[o.from];
+  const p=t.players.find(x=>x.id===o.pid);
+  if(!p){o.dead=1;setTab("market");return}
+  const inGrid=Object.values(G.tactic.grid).some(g=>g&&g.pid===p.id);
+  sheet(`<h3>Vender ${p.n} ao ${buyer.n}?</h3>
+   <div class="kv" style="margin-top:10px"><span>Valor da proposta</span><b style="color:var(--amber)">${fmtM(o.amt)}</b></div>
+   <div class="kv"><span>Idade / Overall</span><b>${p.age} anos · ${p.ovr}</b></div>
+   <div class="kv"><span>Valor de mercado</span><b>${fmtM(value(p))}</b></div>
+   ${inGrid?'<p style="color:var(--red);font-size:12.5px;margin:10px 0 4px">⚠ Este jogador está no teu onze titular — a posição fica vazia até arrastares outro para lá.</p>':""}
+   <p class="sub" style="margin:10px 0 4px">Esta ação é definitiva e não pode ser desfeita.</p>
+   <button class="btn" style="background:var(--red)" onclick="acceptOffer(${i})">Confirmar venda</button>
+   <button class="btn ghost" onclick="closeSheet()">Cancelar</button>`);
 }
 function acceptOffer(i){
   const o=G.offersIn[i];if(!o||o.dead){setTab("market");return;}
@@ -2651,14 +2679,14 @@ function acceptOffer(i){
   p.t=o.from;p.hist10=[];buyer.players.push(p);
   o.dead=1;
   pushNews("✈ Venda concluída",p.n+" deixa o clube rumo ao "+buyer.n+" por "+fmtM(o.amt)+".");
-  saveGame();refreshHeader();setTab("market");
+  closeSheet();saveGame();refreshHeader();setTab("market");
 }
 function rejectOffer(i){if(G.offersIn[i])G.offersIn[i].dead=1;setTab("market")}
 function marketAI(){ // a IA faz propostas e negoceia entre si nas janelas
   // contratação de livres (acontece a qualquer altura — os bons voam!)
   if(G.freeAgents&&G.freeAgents.length&&Math.random()<0.45){
     const fa=[...G.freeAgents].sort((a,b)=>(b.ovr+b.pot*40)-(a.ovr+a.pot*40))[0];
-    const buyers=G.teams.filter(x=>x.i!==G.my&&!x.b&&x.players.length<21&&fa.ovr>=x.base-10);
+    const buyers=G.teams.filter(x=>x.i!==G.my&&!x.b&&x.players.length<SQUAD_MAX&&fa.ovr>=x.base-10);
     if(buyers.length&&Math.random()<0.7){
       const b=pick(buyers);
       G.freeAgents=G.freeAgents.filter(x=>x.id!==fa.id);
@@ -2673,7 +2701,7 @@ function marketAI(){ // a IA faz propostas e negoceia entre si nas janelas
     const targets=t.players.filter(p=>p.listed||p.ovr>=t.base+4||Math.random()<0.06);
     if(targets.length){
       const p=pick(targets);
-      const buyers=G.teams.filter(x=>x.i!==G.my&&!x.b&&x.players.length<21&&x.budget>value(p)*0.7&&x.base>=p.ovr-14);
+      const buyers=G.teams.filter(x=>x.i!==G.my&&!x.b&&x.players.length<SQUAD_MAX&&x.budget>value(p)*0.7&&x.base>=p.ovr-14);
       if(buyers.length){
         const b=pick(buyers);
         const amt=Math.round(value(p)*rnd(p.listed?0.85:0.9,1.35));
@@ -2690,7 +2718,7 @@ function marketAI(){ // a IA faz propostas e negoceia entre si nas janelas
       const listed=myT.players.filter(p=>p.listed&&!pend.some(o=>o.pid===p.id));
       for(const p of listed){
         if(Math.random()>=0.12)continue;
-        const buyers=G.teams.filter(x=>x.i!==G.my&&!x.b&&x.players.length<21&&x.budget>value(p)*0.55&&x.base>=p.ovr-18);
+        const buyers=G.teams.filter(x=>x.i!==G.my&&!x.b&&x.players.length<SQUAD_MAX&&x.budget>value(p)*0.55&&x.base>=p.ovr-18);
         if(!buyers.length)continue;
         const b=pick(buyers);
         const amt=Math.round(value(p)*rnd(0.80,1.15));
@@ -2809,7 +2837,7 @@ function aiAcademyPromote(team){
   const eligible=team.academy.players.filter(p=>p.age>=17).sort((a,b)=>b.ovr-a.ovr);
   const need=Math.max(0,18-team.players.length);
   const toPromote=eligible.slice(0,Math.max(need,Math.min(2,eligible.length)));
-  toPromote.forEach(p=>{if(team.players.length>=21)return;p.gen=1;p.sta=100;p.hist10=[];p.apps10=0;team.players.push(p);});
+  toPromote.forEach(p=>{if(team.players.length>=SQUAD_MAX)return;p.gen=1;p.sta=100;p.hist10=[];p.apps10=0;team.players.push(p);});
   team.academy.players=team.academy.players.filter(p=>!toPromote.includes(p));
 }
 
@@ -2831,7 +2859,7 @@ function promotePlayer(id){
   const t=G.teams[G.my];
   const p=t.academy.players.find(x=>x.id===id);
   if(!p)return;
-  if(t.players.length>=21){promoteSwapSheet(id);return;}
+  if(t.players.length>=SQUAD_MAX){promoteSwapSheet(id);return;}
   t.academy.players=t.academy.players.filter(x=>x.id!==id);
   p.gen=1;p.sta=100;p.hist10=[];p.apps10=0;
   t.players.push(p);
@@ -4025,7 +4053,7 @@ function renderGeral(c){
 </script>
 <script>
 /* ============ DISPENSAS MANUAIS, REVISÃO DE FIM DE ÉPOCA, PROMOÇÃO COM TROCA ============ */
-const SQUAD_MAX=21;
+
 function cleanTactic(pid){if(G.tactic&&G.tactic.grid)for(const k in G.tactic.grid)if(G.tactic.grid[k]&&G.tactic.grid[k].pid===pid)G.tactic.grid[k].pid=null;}
 function doRelease(p){
   const t=G.teams[G.my];
@@ -4086,7 +4114,7 @@ function promoteSwapSheet(aid){
   const t=G.teams[G.my];
   const ap=t.academy.players.find(x=>x.id===aid);
   if(!ap)return;
-  sheet(`<h3>Plantel cheio (21/21)</h3>
+  sheet(`<h3>Plantel cheio (${SQUAD_MAX}/${SQUAD_MAX})</h3>
    <p class="sub" style="margin:6px 0 10px">Para promover <b>${ap.n}</b> (${ap.age} anos · OVR ${ap.ovr}) tens de dispensar um jogador. Escolhe quem sai:</p>
    ${[...t.players].sort((a,b)=>a.ovr-b.ovr).map(p=>`<div class="list-item" onclick="promoteSwap(${aid},${p.id})" style="cursor:pointer">
      <div class="posb pos-${posGroup(p.pos)}">${p.pos}</div>
